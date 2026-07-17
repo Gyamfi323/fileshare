@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FileShare - Upload</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .drop-zone {
+            border: 3px dashed #667eea;
+            border-radius: 12px;
+            padding: 50px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #f8f9ff;
+            margin-bottom: 20px;
+        }
+        .drop-zone:hover {
+            border-color: #764ba2;
+            background: #f0f1ff;
+        }
+        .drop-zone.drag-over {
+            border-color: #764ba2;
+            background: #e8e9ff;
+        }
+        .drop-icon { font-size: 48px; margin-bottom: 10px; }
+        .drop-text { color: #333; font-weight: 600; margin-bottom: 5px; }
+        .drop-subtext { color: #999; font-size: 12px; }
+        .file-input { display: none; }
+        .upload-button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 16px;
+            transition: transform 0.2s;
+        }
+        .upload-button:hover:not(:disabled) { transform: translateY(-2px); }
+        .upload-button:disabled { opacity: 0.6; cursor: not-allowed; }
+        .progress-container {
+            margin-top: 20px;
+            display: none;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s;
+        }
+        .result-container {
+            margin-top: 20px;
+            display: none;
+            background: #f0fff4;
+            border: 2px solid #9ae6b4;
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .result-container.success { display: block; }
+        .result-icon { font-size: 32px; text-align: center; margin-bottom: 10px; }
+        .result-title { color: #22543d; font-weight: 600; text-align: center; margin-bottom: 15px; }
+        .result-link {
+            width: 100%;
+            padding: 10px;
+            background: white;
+            border: 1px solid #cbd5e0;
+            border-radius: 6px;
+            font-size: 12px;
+            word-break: break-all;
+            font-family: monospace;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .copy-button {
+            width: 100%;
+            padding: 10px;
+            background: #48bb78;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 12px;
+        }
+        .copy-button:hover { background: #38a169; }
+        .file-info { font-size: 12px; color: #666; line-height: 1.6; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📤 FileShare</h1>
+        <p class="subtitle">Upload files instantly. Get shareable link. No login needed.</p>
+
+        <div class="drop-zone" id="dropZone">
+            <div class="drop-icon">⬇️</div>
+            <div class="drop-text">Drop your file here</div>
+            <div class="drop-subtext">or click to browse</div>
+            <input type="file" id="fileInput" class="file-input">
+        </div>
+
+        <button class="upload-button" id="uploadButton" disabled>Upload</button>
+
+        <div class="progress-container" id="progressContainer">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div id="progressText" style="text-align:center; color:#666; font-size:12px;">0%</div>
+        </div>
+
+        <div class="result-container" id="resultContainer">
+            <div class="result-icon">✅</div>
+            <div class="result-title">Upload Successful!</div>
+            <input type="text" class="result-link" id="resultLink" readonly>
+            <button class="copy-button" onclick="copyLink()">📋 Copy Link</button>
+            <div class="file-info">
+                <div><strong>File:</strong> <span id="resultFileName"></span></div>
+                <div><strong>Size:</strong> <span id="resultFileSize"></span> MB</div>
+                <div><strong>Expires:</strong> 30 days</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const uploadButton = document.getElementById('uploadButton');
+
+        dropZone.addEventListener('click', () => fileInput.click());
+        
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        });
+        
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('drag-over');
+        });
+        
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            if (e.dataTransfer.files[0]) {
+                fileInput.files = e.dataTransfer.files;
+                uploadButton.disabled = false;
+            }
+        });
+
+        fileInput.addEventListener('change', () => {
+            uploadButton.disabled = !fileInput.files[0];
+        });
+
+        uploadButton.addEventListener('click', async () => {
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            uploadButton.disabled = true;
+            document.getElementById('progressContainer').style.display = 'block';
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const xhr = new XMLHttpRequest();
+                
+                xhr.upload.addEventListener('progress', (e) => {
+                    if (e.lengthComputable) {
+                        const percent = Math.round((e.loaded / e.total) * 100);
+                        document.getElementById('progressFill').style.width = percent + '%';
+                        document.getElementById('progressText').textContent = percent + '%';
+                    }
+                });
+
+                xhr.addEventListener('load', () => {
+                    document.getElementById('progressContainer').style.display = 'none';
+                    const data = JSON.parse(xhr.responseText);
+                    
+                    if (xhr.status === 201 || xhr.status === 200) {
+                        document.getElementById('resultLink').value = data.link;
+                        document.getElementById('resultFileName').textContent = data.filename;
+                        document.getElementById('resultFileSize').textContent = data.size_mb;
+                        document.getElementById('resultContainer').classList.add('success');
+                        navigator.clipboard.writeText(data.link);
+                    }
+                    uploadButton.disabled = false;
+                });
+
+                xhr.open('POST', '/fileshare/api/upload/');
+                xhr.setRequestHeader('ngrok-skip-browser-warning', 'true');
+                xhr.setRequestHeader('User-Agent', 'FileShare-Downloader/1.0');
+                xhr.send(formData);
+            } catch (error) {
+                alert('Upload failed: ' + error.message);
+                uploadButton.disabled = false;
+            }
+        });
+
+        function copyLink() {
+            const link = document.getElementById('resultLink');
+            link.select();
+            document.execCommand('copy');
+            alert('Link copied to clipboard!');
+        }
+    </script>
+</body>
+</html>
